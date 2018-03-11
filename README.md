@@ -1,5 +1,8 @@
 # rowi
 
+
+[![CircleCI](https://circleci.com/gh/damonpetta/rowi.svg?style=svg)](https://circleci.com/gh/damonpetta/rowi) | ![GitHub issues](https://img.shields.io/github/issues/badges/shields.svg)
+
 Read-Only markdown wiki server
 
 # Running
