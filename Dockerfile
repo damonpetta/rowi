@@ -1,14 +1,20 @@
-FROM alpine:edge
+FROM golang:alpine
 
-RUN apk add --update --virtual build-deps build-base go \
-    && apk add --update git bash \
-    && apk del build-deps \
-    && rm -rf /var/cache/apk/*
+ENV GOPATH /go
+EXPOSE 8000
 
-ADD entrypoint.sh /entrypoint.sh
+RUN apk add --update git bash
+
+ADD . /go/src/github.com/damonpetta/rowi
+ADD entrypoint.sh /app/entrypoint.sh
+
+WORKDIR /go/src/github.com/damonpetta/rowi
+
+# ##TODO## Move to two stage build
+RUN go build . \
+    && mv rowi /app/rowi \
+    && rm -rf /var/cache/apk/* /go
 
 WORKDIR /app
 
-EXPOSE 3000
-
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["/app/entrypoint.sh"]
