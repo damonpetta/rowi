@@ -6,6 +6,9 @@ jobs:
   build:
     docker:
       - image: circleci/golang:1.10
+        environment:
+          NAMESPACE: damonpetta
+          SERVICE: rowi
     working_directory: /go/src/github.com/damonpetta/rowi
     steps:
       - checkout
@@ -13,3 +16,8 @@ jobs:
       # specify any bash command here prefixed with `run: `
       - run: go get -v -t -d ./...
       - run: go test -v ./...
+      - setup_remote_docker
+      - run: docker build -t $NAMESPACE/$SERVICE:$CIRCLE_SHA1 .
+      - run: docker login -u $DOCKER_ID -p $DOCKER_PASSWORD
+      - run: docker tag $NAMESPACE/$SERVICE:$CIRCLE_SHA1 $NAMESPACE/$SERVICE:latest
+      - run: docker push $NAMESPACE/$SERVICE
