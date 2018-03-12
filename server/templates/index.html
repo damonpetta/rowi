@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Sample of websocket with golang</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+  <script>
+    $(function() {
+      var ws = new WebSocket("ws://localhost:8080/ws");
+      ws.onmessage = function(e) {
+        console.log("Received:" + event.data);
+      };
+      var $ul = $('#msg-list');
+      $('#sendBtn').click(function(){
+        var data = $('#name').val();
+        ws.send(data);
+        console.log("Sent:" + data);
+        $('<li>').text(data).appendTo($ul);
+      });
+    });
+  </script>
+</head>
+<body>
+<input id="name" type="text" />
+<input type="button" id="sendBtn" value="send"></input>
+<ul id="msg-list"></ul>
+</body>
+</html>

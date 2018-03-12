@@ -1,9 +1,14 @@
 package main
 
-func Sum(x int, y int) int {
-    return x + y
-}
+import (
+	"github.com/rowi/renderer"
+	server "github.com/rowi/server"
+)
 
 func main() {
-    Sum(5, 5)
-  }
+	renderer := renderer.NewRenderer("../rowi.wiki")
+	renderer.Run()
+
+	srv := server.NewServer()
+	srv.Run()
+}
