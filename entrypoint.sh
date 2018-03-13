@@ -19,4 +19,4 @@ update_wiki &
 
 
 # Replace with rowi daemon
-sleep 1000000000
+/app/rowi
