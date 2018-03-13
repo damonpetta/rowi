@@ -1,28 +1,134 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Sample of websocket with golang</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
-  <script>
-    $(function() {
-      var ws = new WebSocket("ws://localhost:8080/ws");
-      ws.onmessage = function(e) {
-        console.log("Received:" + event.data);
-      };
-      var $ul = $('#msg-list');
-      $('#sendBtn').click(function(){
-        var data = $('#name').val();
-        ws.send(data);
-        console.log("Sent:" + data);
-        $('<li>').text(data).appendTo($ul);
-      });
-    });
-  </script>
-</head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="">
+  <meta name="author" content="">
+  <title>Title</title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
+        integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+  <style type="text/css">
+    html {
+      position: relative;
+      min-height: 100%;
+    }
+
+    body {
+      margin-bottom: 60px;
+    }
+
+    .footer {
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      height: 60px;
+      line-height: 60px; /* Vertically center the text there */
+      background-color: #f5f5f5;
+    }
+
+    body > .container {
+      padding: 60px 15px 0;
+    }
+
+    .footer > .container {
+      padding-right: 15px;
+      padding-left: 15px;
+    }
+
+    code {
+      font-size: 80%;
+    }
+
+    #sidebar {
+      display: block;
+      padding: 9px 5px 5px;
+      margin: 0;
+      font-size: 14px;
+      background-color: #f6f8fa;
+      border: 1px solid rgba(27, 31, 35, 0.15);
+      border-radius: 3px;
+    }
+  </style>
 <body>
-<input id="name" type="text" />
-<input type="button" id="sendBtn" value="send"></input>
-<ul id="msg-list"></ul>
+
+<header>
+  <nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark"></nav>
+</header>
+
+<main role="main" class="container">
+  <div class="row">
+    <div id="sidebar" class="col-md-3 order-md-2 mb-4">
+      <ul>
+        <li><a href="./" rel="nofollow">Introduction</a></li>
+        <li><a href="./GettingStarted" rel="nofollow">Getting started</a>
+          <ul>
+            <li>Frontend bootstrap</li>
+            <li>Backend bootstrap</li>
+          </ul>
+        </li>
+        <li>Frontend development
+          <ul>
+            <li>Layout</li>
+            <li>Theming</li>
+            <li>Querying for data</li>
+            <li>Default connectors</li>
+            <li>Refresh / Update</li>
+            <li>Pagination</li>
+          </ul>
+        </li>
+        <li>Backend development
+          <ul>
+            <li>Stock resolvers</li>
+            <li>Customer GraphQL schema</li>
+          </ul>
+        </li>
+        <li><a href="./Authentication" rel="nofollow">Authentication</a>
+          <ul>
+            <li><a href="./Authentication#staff-authentication" rel="nofollow">Staff authentication</a></li>
+            <li><a href="./Authentication#service-account-authentication" rel="nofollow">ServiceAccount
+              authentication</a></li>
+            <li><a href="./Authentication#implementing-frontend-sign-in-process" rel="nofollow">Frontend sign in</a>
+            </li>
+            <li><a href="./Authentication#protecting-apisstores" rel="nofollow">API authentication</a></li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+    <div id="main" class="col-md-9 order-md-1">
+      <p>Welcome to the rowi wiki!</p>
+      <ul>
+        <li><a href="Example1" rel="nofollow">Example 1</a></li>
+        <li><a href="Example2" rel="nofollow">Example 2</a></li>
+        <li><a href="Markdown-Test" rel="nofollow">Markdown Test</a></li>
+      </ul>
+    </div>
+  </div>
+</main>
+
+<footer class="footer">
+  <div class="container" id="footer">
+  </div>
+</footer>
+
+<script src="https://code.jquery.com/jquery-3.2.1.slim.min.js"
+        integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN"
+        crossorigin="anonymous"></script>
+
+<script>
+  $(function () {
+    var ws = new WebSocket("ws://localhost:8080/front");
+    ws.onmessage = function (e) {
+      let obj = $.parseJSON(event.data)
+      console.log(obj)
+      $('#main').html(obj.Content)
+      $('#footer').html(obj.Footer)
+    };
+    // $('#sendBtn').click(function () {
+    //   var data = $('#name').val();
+    //   ws.send(data);
+    // });
+  });
+</script>
 </body>
 </html>

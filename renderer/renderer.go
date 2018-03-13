@@ -1,53 +1,99 @@
 package renderer
 
 import (
+	"encoding/json"
 	log "github.com/Sirupsen/logrus"
+	"github.com/gorilla/websocket"
 	"github.com/shurcooL/github_flavored_markdown"
 	"io/ioutil"
+	"net/url"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // Renderer - type which renderer md to html files
 type Renderer struct {
-	path string //path to md-files
-	page Page   //page of Content
+	path    string    // path to md-files
+	page    Page      // page of Content
+	updater chan Page // channel for sending update information
 }
 
 // Page - type which keep information about the page
 type Page struct {
-	Content []byte //main html-Content of the page
-	Sidebar []byte //Sidebar html-Content
-	Header  []byte //Header html-Content
-	Footer  []byte //Footer html-Content
+	Content string //main html-Content of the page
+	Sidebar string //Sidebar html-Content
+	Header  string //Header html-Content
+	Footer  string //Footer html-Content
 }
 
 // NewRenderer - create an instance of renderer
 func NewRenderer(path string) *Renderer {
 	return &Renderer{
-		path: path,
+		updater: make(chan Page, 100),
+		path:    path,
 	}
 }
 
-// addMainContent - parse Content from one of main files: home.md, index.md or README.md
-func (r *Renderer) addMainContent(filepath string) ([]byte, error) {
-	var result []byte
+// addContent - parse Content from one of main files: home.md, index.md or README.md
+func (r *Renderer) addContent(filepath string) (string, error) {
 	bts, err := ioutil.ReadFile(filepath)
 	if err != nil {
-		return result, err
+		return string(bts), err
 	}
 
-	result = github_flavored_markdown.Markdown(bts)
-	return result, nil
+	bts = github_flavored_markdown.Markdown(bts)
+	return string(bts), nil
+}
+
+func (r *Renderer) notificator() {
+	u := url.URL{Scheme: "ws", Host: "localhost:8080", Path: "/source"}
+	log.Printf("connecting to %s", u.String())
+
+	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
+	if err != nil {
+		log.Fatal("dial:", err)
+	}
+	defer c.Close()
+
+	for {
+		page := <-r.updater
+		log.Println("Run page")
+
+		w, err := c.NextWriter(websocket.TextMessage)
+		if err != nil {
+			log.Error(err)
+		}
+
+		//disable html-encode
+		encoder := json.NewEncoder(w)
+		encoder.SetEscapeHTML(false)
+
+		err1 := encoder.Encode(page)
+		w.Close()
+		if err1 != nil {
+			log.Error(err1)
+		}
+
+		//err := c.WriteJSON(page)
+		//if err != nil {
+		//	log.Println("write:", err)
+		//	return
+		//}
+	}
 }
 
 // Run - run renderer
 func (r *Renderer) Run() {
+	time.Sleep(time.Second * 30)
+	go r.notificator()
+
 	files, err := ioutil.ReadDir(r.path)
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	page := Page{}
 	for _, f := range files {
 		if filepath.Ext(f.Name()) == ".md" {
 			apath, err := filepath.Abs(filepath.Join(r.path, f.Name()))
@@ -57,26 +103,28 @@ func (r *Renderer) Run() {
 
 			switch strings.ToLower(f.Name()) {
 			case "home.md", "index.md", "README.md":
-				r.page.Content, err = r.addMainContent(apath)
+				page.Content, err = r.addContent(apath)
 				if err != nil {
 					log.Error(err)
 				}
 			case "_header.md":
-				r.page.Header, err = r.addMainContent(apath)
+				page.Header, err = r.addContent(apath)
 				if err != nil {
 					log.Error(err)
 				}
 			case "_footer.md":
-				r.page.Footer, err = r.addMainContent(apath)
+				page.Footer, err = r.addContent(apath)
 				if err != nil {
 					log.Error(err)
 				}
 			case "_sidebar.md":
-				r.page.Sidebar, err = r.addMainContent(apath)
+				page.Sidebar, err = r.addContent(apath)
 				if err != nil {
 					log.Error(err)
 				}
 			}
 		}
 	}
+
+	r.updater <- page
 }

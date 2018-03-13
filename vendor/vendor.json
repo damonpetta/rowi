@@ -27,6 +27,12 @@
 			"revisionTime": "2017-06-12T09:01:09Z"
 		},
 		{
+			"checksumSHA1": "D4efAdpmy4cFYgI/sHnvgYi3O/I=",
+			"path": "github.com/gobuffalo/packr",
+			"revision": "d1edcdeb0cc5f68dacccdb5b63dcb055a8b32663",
+			"revisionTime": "2018-03-12T15:59:26Z"
+		},
+		{
 			"checksumSHA1": "qlPUeFabwF4RKAOF1H+yBFU1Veg=",
 			"path": "github.com/golang/protobuf/proto",
 			"revision": "5a0f697c9ed9d68fef0116532c6e05cfeae00e55",
@@ -49,6 +55,12 @@
 			"path": "github.com/microcosm-cc/bluemonday",
 			"revision": "542fd4642604d0d0c26112396ce5b1a9d01eee0b",
 			"revisionTime": "2017-12-22T15:26:07Z"
+		},
+		{
+			"checksumSHA1": "ljd3FhYRJ91cLZz3wsH9BQQ2JbA=",
+			"path": "github.com/pkg/errors",
+			"revision": "816c9085562cd7ee03e7f8188a1cfd942858cded",
+			"revisionTime": "2018-03-11T21:45:15Z"
 		},
 		{
 			"checksumSHA1": "EhdfJQGVgHHNpcNI5nizjNMbWUI=",

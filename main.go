@@ -7,7 +7,7 @@ import (
 
 func main() {
 	renderer := renderer.NewRenderer("../rowi.wiki")
-	renderer.Run()
+	go renderer.Run()
 
 	srv := server.NewServer()
 	srv.Run()
