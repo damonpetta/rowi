@@ -2,36 +2,47 @@ package renderer
 
 import (
 	"encoding/json"
+	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/websocket"
+	"github.com/rjeczalik/notify"
 	"github.com/shurcooL/github_flavored_markdown"
 	"io/ioutil"
 	"net/url"
+	"os"
+	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 )
 
 // Renderer - type which renderer md to html files
 type Renderer struct {
-	path    string    // path to md-files
-	page    Page      // page of Content
-	updater chan Page // channel for sending update information
+	address      string    // address of http-server
+	path         string    // path to md-files
+	page         Page      // page of Content
+	updater      chan Page // channel for sending update information
+	relativePath string    // relativePath in case if server has this option set
 }
 
 // Page - type which keep information about the page
 type Page struct {
-	Content string //main html-Content of the page
-	Sidebar string //Sidebar html-Content
-	Header  string //Header html-Content
-	Footer  string //Footer html-Content
+	Content        string // main html-Content of the page
+	Sidebar        string // Sidebar html-Content
+	Header         string // Header html-Content
+	Footer         string // Footer html-Content
+	LastModifiedBy string // User who modified this repo last time
+	LastModifiedAt string // Date when this repo was modified last time
 }
 
 // NewRenderer - create an instance of renderer
-func NewRenderer(path string) *Renderer {
+func NewRenderer(address, relativePath, path string) *Renderer {
 	return &Renderer{
-		updater: make(chan Page, 100),
-		path:    path,
+		address:      address,
+		path:         path,
+		updater:      make(chan Page, 100),
+		relativePath: relativePath,
 	}
 }
 
@@ -47,7 +58,7 @@ func (r *Renderer) addContent(filepath string) (string, error) {
 }
 
 func (r *Renderer) notificator() {
-	u := url.URL{Scheme: "ws", Host: "localhost:8080", Path: "/source"}
+	u := url.URL{Scheme: "ws", Host: r.address, Path: filepath.Join(r.relativePath, "source")}
 	log.Printf("connecting to %s", u.String())
 
 	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
@@ -74,27 +85,36 @@ func (r *Renderer) notificator() {
 		if err1 != nil {
 			log.Error(err1)
 		}
+	}
+}
 
-		//err := c.WriteJSON(page)
-		//if err != nil {
-		//	log.Println("write:", err)
-		//	return
-		//}
+// updateWatcher - cycle for monitoring changes in filesystem
+func (r *Renderer) updateWatcher() {
+	ch := make(chan notify.EventInfo, 1000)
+	notify.Watch(r.path, ch, notify.All)
+	defer notify.Stop(ch)
+
+	// monitoring cycle
+	for {
+		ei := <-ch
+		log.Println("Got event:", ei)
 	}
 }
 
 // Run - run renderer
 func (r *Renderer) Run() {
-	time.Sleep(time.Second * 30)
 	go r.notificator()
+	go r.updateWatcher()
 
 	files, err := ioutil.ReadDir(r.path)
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	isGitRepo := false
 	page := Page{}
 	for _, f := range files {
+		fmt.Println(f.Name())
 		if filepath.Ext(f.Name()) == ".md" {
 			apath, err := filepath.Abs(filepath.Join(r.path, f.Name()))
 			if err != nil {
@@ -124,6 +144,42 @@ func (r *Renderer) Run() {
 				}
 			}
 		}
+
+		// check if this dir is git repo
+		if f.Name() == ".git" {
+			fi, err := os.Stat(f.Name())
+			if err != nil {
+				log.Error(err)
+			}
+
+			// if object with name .git is dir
+			if fi.IsDir() {
+				isGitRepo = true
+			}
+		}
+	}
+
+	if isGitRepo {
+		out, err := exec.Command("/usr/local/bin/git", "log").Output()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		reAuthor := regexp.MustCompile(`Author: ([^<]*)`)
+		dateAuthor := regexp.MustCompile(`Date: ([^\n]*)`)
+		//fmt.Println(string(out))
+
+		rps := reAuthor.FindAllStringSubmatch(string(out), 1)
+		author := strings.TrimSpace(rps[0][1])
+
+		rps = dateAuthor.FindAllStringSubmatch(string(out), 1)
+		date, err := time.Parse("Mon Jan _2 15:04:05 2006 -0700", strings.TrimSpace(rps[0][1]))
+		if err != nil {
+			log.Error(err)
+		}
+
+		page.LastModifiedBy = author
+		page.LastModifiedAt = date.Format("2006-01-02 15:04:05")
 	}
 
 	r.updater <- page

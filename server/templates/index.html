@@ -23,7 +23,8 @@
       bottom: 0;
       width: 100%;
       height: 60px;
-      line-height: 60px; /* Vertically center the text there */
+      line-height: 1.1em;
+      /*line-height: 60px; !* Vertically center the text there *!*/
       background-color: #f5f5f5;
     }
 
@@ -32,6 +33,7 @@
     }
 
     .footer > .container {
+      padding-top: 5px;
       padding-right: 15px;
       padding-left: 15px;
     }
@@ -58,57 +60,13 @@
 
 <main role="main" class="container">
   <div class="row">
-    <div id="sidebar" class="col-md-3 order-md-2 mb-4">
-      <ul>
-        <li><a href="./" rel="nofollow">Introduction</a></li>
-        <li><a href="./GettingStarted" rel="nofollow">Getting started</a>
-          <ul>
-            <li>Frontend bootstrap</li>
-            <li>Backend bootstrap</li>
-          </ul>
-        </li>
-        <li>Frontend development
-          <ul>
-            <li>Layout</li>
-            <li>Theming</li>
-            <li>Querying for data</li>
-            <li>Default connectors</li>
-            <li>Refresh / Update</li>
-            <li>Pagination</li>
-          </ul>
-        </li>
-        <li>Backend development
-          <ul>
-            <li>Stock resolvers</li>
-            <li>Customer GraphQL schema</li>
-          </ul>
-        </li>
-        <li><a href="./Authentication" rel="nofollow">Authentication</a>
-          <ul>
-            <li><a href="./Authentication#staff-authentication" rel="nofollow">Staff authentication</a></li>
-            <li><a href="./Authentication#service-account-authentication" rel="nofollow">ServiceAccount
-              authentication</a></li>
-            <li><a href="./Authentication#implementing-frontend-sign-in-process" rel="nofollow">Frontend sign in</a>
-            </li>
-            <li><a href="./Authentication#protecting-apisstores" rel="nofollow">API authentication</a></li>
-          </ul>
-        </li>
-      </ul>
-    </div>
-    <div id="main" class="col-md-9 order-md-1">
-      <p>Welcome to the rowi wiki!</p>
-      <ul>
-        <li><a href="Example1" rel="nofollow">Example 1</a></li>
-        <li><a href="Example2" rel="nofollow">Example 2</a></li>
-        <li><a href="Markdown-Test" rel="nofollow">Markdown Test</a></li>
-      </ul>
-    </div>
+    <div id="sidebar" class="col-md-3 order-md-2 mb-4"></div>
+    <div id="main" class="col-md-9 order-md-1"></div>
   </div>
 </main>
 
 <footer class="footer">
-  <div class="container" id="footer">
-  </div>
+  <div class="container" id="footer"></div>
 </footer>
 
 <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js"
@@ -117,12 +75,22 @@
 
 <script>
   $(function () {
-    var ws = new WebSocket("ws://localhost:8080/front");
+    var address = location.hostname+(location.port ? ':'+location.port: '');
+    if(location.pathname != '') {
+      address += location.pathname
+    }
+
+    var ws = new WebSocket("ws://" + address + "front");
     ws.onmessage = function (e) {
       let obj = $.parseJSON(event.data)
       console.log(obj)
       $('#main').html(obj.Content)
       $('#footer').html(obj.Footer)
+      $('#sidebar').html(obj.Sidebar)
+
+      if (obj.LastModifiedBy !== '') {
+        $('#footer').append('<small>Last edited by ' + obj.LastModifiedBy + ', ' + obj.LastModifiedAt + '</small>')
+      }
     };
     // $('#sendBtn').click(function () {
     //   var data = $('#name').val();
