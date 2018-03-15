@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"github.com/damonpetta/rowi/renderer"
 	"github.com/damonpetta/rowi/server"
 )
 
@@ -13,9 +12,6 @@ var relativePath = flag.String("prefix", "", " Url path relativePath")
 func main() {
 	flag.Parse()
 
-	renderer := renderer.NewRenderer(*address, *relativePath, *docroot)
-	go renderer.Run()
-
-	srv := server.NewServer(*address, *relativePath)
+	srv := server.NewServer(*address, *relativePath, *docroot)
 	srv.Run()
 }

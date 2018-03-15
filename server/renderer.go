@@ -1,14 +1,12 @@
-package renderer
+package server
 
 import (
-	"encoding/json"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
-	"github.com/gorilla/websocket"
 	"github.com/rjeczalik/notify"
 	"github.com/shurcooL/github_flavored_markdown"
+	"html/template"
 	"io/ioutil"
-	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,30 +17,32 @@ import (
 
 // Renderer - type which renderer md to html files
 type Renderer struct {
-	address      string    // address of http-server
-	path         string    // path to md-files
-	page         Page      // page of Content
-	updater      chan Page // channel for sending update information
-	relativePath string    // relativePath in case if server has this option set
+	address      string                   // address of http-server
+	path         string                   // path to md-files
+	page         Page                     // page of Content
+	updater      chan Page                // channel for sending update information
+	relativePath string                   // relativePath in case if server has this option set
+	contents     map[string]template.HTML // set of all available pages
 }
 
 // Page - type which keep information about the page
 type Page struct {
-	Content        string // main html-Content of the page
-	Sidebar        string // Sidebar html-Content
-	Header         string // Header html-Content
-	Footer         string // Footer html-Content
-	LastModifiedBy string // User who modified this repo last time
-	LastModifiedAt string // Date when this repo was modified last time
+	Sidebar        template.HTML // Sidebar html-Content
+	Header         template.HTML // Header html-Content
+	Footer         template.HTML // Footer html-Content
+	Content        template.HTML // main html-Content of the page
+	LastModifiedBy string        // User who modified this repo last time
+	LastModifiedAt string        // Date when this repo was modified last time
 }
 
 // NewRenderer - create an instance of renderer
-func NewRenderer(address, relativePath, path string) *Renderer {
+func NewRenderer(path string) *Renderer {
 	return &Renderer{
-		address:      address,
+		contents:     make(map[string]template.HTML),
+		address:      "",
 		path:         path,
 		updater:      make(chan Page, 100),
-		relativePath: relativePath,
+		relativePath: "",
 	}
 }
 
@@ -55,37 +55,6 @@ func (r *Renderer) addContent(filepath string) (string, error) {
 
 	bts = github_flavored_markdown.Markdown(bts)
 	return string(bts), nil
-}
-
-func (r *Renderer) notificator() {
-	u := url.URL{Scheme: "ws", Host: r.address, Path: filepath.Join(r.relativePath, "source")}
-	log.Printf("connecting to %s", u.String())
-
-	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
-	if err != nil {
-		log.Fatal("dial:", err)
-	}
-	defer c.Close()
-
-	for {
-		page := <-r.updater
-		log.Println("Run page")
-
-		w, err := c.NextWriter(websocket.TextMessage)
-		if err != nil {
-			log.Error(err)
-		}
-
-		//disable html-encode
-		encoder := json.NewEncoder(w)
-		encoder.SetEscapeHTML(false)
-
-		err1 := encoder.Encode(page)
-		w.Close()
-		if err1 != nil {
-			log.Error(err1)
-		}
-	}
 }
 
 // updateWatcher - cycle for monitoring changes in filesystem
@@ -101,9 +70,22 @@ func (r *Renderer) updateWatcher() {
 	}
 }
 
+// GetPage - return page content
+func (r *Renderer) GetPage(docPath string) (Page, error) {
+	if _, ok := r.contents[docPath]; !ok {
+		return Page{}, fmt.Errorf("Can't find the page")
+	}
+
+	return Page{
+		Header:  r.page.Header,
+		Footer:  r.page.Footer,
+		Sidebar: r.page.Sidebar,
+		Content: r.contents[docPath],
+	}, nil
+}
+
 // Run - run renderer
 func (r *Renderer) Run() {
-	go r.notificator()
 	go r.updateWatcher()
 
 	files, err := ioutil.ReadDir(r.path)
@@ -123,25 +105,40 @@ func (r *Renderer) Run() {
 
 			switch strings.ToLower(f.Name()) {
 			case "home.md", "index.md", "README.md":
-				page.Content, err = r.addContent(apath)
+				content, err := r.addContent(apath)
 				if err != nil {
 					log.Error(err)
 				}
+
+				r.contents["/"] = template.HTML(content)
 			case "_header.md":
-				page.Header, err = r.addContent(apath)
+				header, err := r.addContent(apath)
 				if err != nil {
 					log.Error(err)
 				}
+
+				page.Header = template.HTML(header)
 			case "_footer.md":
-				page.Footer, err = r.addContent(apath)
+				footer, err := r.addContent(apath)
 				if err != nil {
 					log.Error(err)
 				}
+
+				page.Footer = template.HTML(footer)
 			case "_sidebar.md":
-				page.Sidebar, err = r.addContent(apath)
+				sidebar, err := r.addContent(apath)
 				if err != nil {
 					log.Error(err)
 				}
+
+				page.Sidebar = template.HTML(sidebar)
+			default:
+				content, err := r.addContent(apath)
+				if err != nil {
+					log.Error(err)
+				}
+
+				r.contents[strings.TrimRight(f.Name(), ".md")] = template.HTML(content)
 			}
 		}
 
@@ -182,5 +179,5 @@ func (r *Renderer) Run() {
 		page.LastModifiedAt = date.Format("2006-01-02 15:04:05")
 	}
 
-	r.updater <- page
+	r.page = page
 }

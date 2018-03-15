@@ -1,3 +1,4 @@
+{{define "index"}}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -55,18 +56,20 @@
 <body>
 
 <header>
-  <nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark"></nav>
+  <nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">{{.Header}}</nav>
 </header>
 
 <main role="main" class="container">
   <div class="row">
-    <div id="sidebar" class="col-md-3 order-md-2 mb-4"></div>
-    <div id="main" class="col-md-9 order-md-1"></div>
+    <div id="sidebar" class="col-md-3 order-md-2 mb-4">
+      {{.Sidebar}}
+    </div>
+    <div id="main" class="col-md-9 order-md-1">{{.Content}}</div>
   </div>
 </main>
 
 <footer class="footer">
-  <div class="container" id="footer"></div>
+  <div class="container" id="footer">{{.Footer}}</div>
 </footer>
 
 <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js"
@@ -75,23 +78,23 @@
 
 <script>
   $(function () {
-    var address = location.hostname+(location.port ? ':'+location.port: '');
-    if(location.pathname != '') {
+    var address = location.hostname + (location.port ? ':' + location.port : '');
+    if (location.pathname != '') {
       address += location.pathname
     }
 
-    var ws = new WebSocket("ws://" + address + "front");
-    ws.onmessage = function (e) {
-      let obj = $.parseJSON(event.data)
-      console.log(obj)
-      $('#main').html(obj.Content)
-      $('#footer').html(obj.Footer)
-      $('#sidebar').html(obj.Sidebar)
-
-      if (obj.LastModifiedBy !== '') {
-        $('#footer').append('<small>Last edited by ' + obj.LastModifiedBy + ', ' + obj.LastModifiedAt + '</small>')
-      }
-    };
+    // var ws = new WebSocket("ws://" + address + "front");
+    // ws.onmessage = function (e) {
+    //   let obj = $.parseJSON(event.data)
+    //   console.log(obj)
+    //   $('#main').html(obj.Content)
+    //   $('#footer').html(obj.Footer)
+    //   $('#sidebar').html(obj.Sidebar)
+    //
+    //   if (obj.LastModifiedBy !== '') {
+    //     $('#footer').append('<small>Last edited by ' + obj.LastModifiedBy + ', ' + obj.LastModifiedAt + '</small>')
+    //   }
+    // };
     // $('#sendBtn').click(function () {
     //   var data = $('#name').val();
     //   ws.send(data);
@@ -100,3 +103,4 @@
 </script>
 </body>
 </html>
+{{end}}

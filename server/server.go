@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
-	"github.com/damonpetta/rowi/renderer"
 	"github.com/gin-gonic/gin"
 	"github.com/gobuffalo/packr"
 	"github.com/gorilla/websocket"
+	"html/template"
 	"net/http"
+	"os"
+	"path/filepath"
 )
 
 var upgrader = websocket.Upgrader{
@@ -19,15 +21,19 @@ var upgrader = websocket.Upgrader{
 // Server - type which handler http-requests
 type Server struct {
 	address      string
-	page         renderer.Page
+	renderer     *Renderer
 	message      chan interface{}
 	clients      []*websocket.Conn
 	relativePath string
 }
 
 // NewServer - create new instance a Server instance
-func NewServer(address, relativePath string) *Server {
+func NewServer(address, relativePath, wikiPath string) *Server {
+	renderer := NewRenderer(wikiPath)
+	renderer.Run()
+
 	return &Server{
+		renderer:     renderer,
 		address:      address,
 		message:      make(chan interface{}, 100),
 		relativePath: relativePath,
@@ -45,25 +51,6 @@ func (s *Server) routes() *gin.Engine {
 
 	v1 := r.Group(s.relativePath)
 
-	// this route uses just to communicate with datasource (renderer)
-	v1.GET("/source", func(c *gin.Context) {
-		conn, _ := upgrader.Upgrade(c.Writer, c.Request, nil) // error ignored for sake of simplicity
-		s.clients = append(s.clients, conn)
-		defer conn.Close()
-
-		for {
-			page := renderer.Page{}
-			// Read message from browser
-			err := conn.ReadJSON(&page)
-			if err != nil {
-				return
-			}
-
-			s.message <- page
-			s.page = page
-		}
-	})
-
 	// this route uses just to communicate with frontend
 	v1.GET("/front", func(c *gin.Context) {
 		conn, _ := upgrader.Upgrade(c.Writer, c.Request, nil) // error ignored for sake of simplicity
@@ -71,20 +58,45 @@ func (s *Server) routes() *gin.Engine {
 		defer conn.Close()
 
 		log.Printf("Client was added: %v", conn.RemoteAddr())
-		err := s.sendJSON(conn, s.page)
+		page, err := s.renderer.GetPage("/")
+		if err != nil {
+			log.Error(err)
+		}
+
+		err = s.sendJSON(conn, page)
 		if err != nil {
 			log.Error(err)
 		}
 	})
 
-	v1.GET("/", func(c *gin.Context) {
-		c.Data(http.StatusOK, "text/html; charset=utf-8", box.Bytes("index.html"))
+	r.NoRoute(func(c *gin.Context) {
+		templateTxt := box.String("index.html")
+
+		t, err := template.New("index").Parse(templateTxt)
+		if err != nil {
+			log.Error(err)
+		}
+
+		page, err := s.renderer.GetPage(filepath.Base(c.Request.URL.Path))
+		if err != nil {
+			statName := filepath.Base(c.Request.URL.Path)
+			_, err := os.Stat(filepath.Join(s.renderer.path, statName))
+			if err == nil {
+				c.File(filepath.Join(s.renderer.path, statName))
+				return
+			}
+
+			c.AbortWithError(http.StatusNotFound, err)
+			return
+		}
+
+		err = t.ExecuteTemplate(c.Writer, "index", page)
 	})
 
 	return r
 }
 
-func (s *Server) sendJSON(conn *websocket.Conn, page renderer.Page) error {
+func (s *Server) sendJSON(conn *websocket.Conn, page Page) error {
 	w, err := conn.NextWriter(websocket.TextMessage)
 	if err != nil {
 		return err
@@ -107,7 +119,7 @@ func (s *Server) worker() {
 	for {
 		page := <-s.message
 		for _, conn := range s.clients {
-			err := s.sendJSON(conn, page.(renderer.Page))
+			err := s.sendJSON(conn, page.(Page))
 			if err != nil {
 				log.Error(err)
 			}
