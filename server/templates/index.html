@@ -6,9 +6,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
   <meta name="description" content="">
   <meta name="author" content="">
-  <title>Title</title>
+  <title>{{.Page.Content.Title}}</title>
   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
-        integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+        integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous"/>
+{{if .Page.IsCustomCSS }}
+{{if ne .RelativePath ""}}
+  <link rel="stylesheet" href="/{{.RelativePath}}/custom.css"/>
+{{else}}
+  <link rel="stylesheet" href="/custom.css"/>
+{{end}}
+{{end}}
   <style type="text/css">
     html {
       position: relative;
@@ -26,7 +33,7 @@
       height: 60px;
       line-height: 1.1em;
       /*line-height: 60px; !* Vertically center the text there *!*/
-      background-color: #f5f5f5;
+      /*background-color: #f5f5f5;*/
     }
 
     body > .container {
@@ -48,41 +55,178 @@
       padding: 9px 5px 5px;
       margin: 0;
       font-size: 14px;
+      }
+
+    .pages {
       background-color: #f6f8fa;
       border: 1px solid rgba(27, 31, 35, 0.15);
       border-radius: 3px;
+      margin-bottom: 30px;
+    }
+
+    .pages a {
+      font-weight: 600;
+    }
+
+    .pages-header {
+      padding: 9px 10px 10px;
+      font-size: 14px;
+      line-height: 17px;
+      margin-bottom: 0px;
+    }
+
+    .caret-collapsed, .caret-expanded {
+      display: inline;
+      vertical-align: text-bottom;
+      cursor: pointer;
+    }
+
+    .expanded .pages-content {
+      display: block;
+      font-size: 14px;
+    }
+
+    .expanded .caret-collapsed {
+      display:none;
+    }
+
+    .collapsed .caret-expanded {
+      display: none;
+    }
+
+    .collapsed .pages-content {
+      display: none;
+    }
+
+    .counter {
+      color: #fff;
+      background-color: rgba(47,54,61,0.5);
+      display: inline-block;
+      padding: 2px 5px;
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1;
+      border-radius: 20px;
+    }
+
+    .pages-list {
+      list-style: none;
+      padding-left: 9px;
+      background: #fff;
+      margin-bottom: 0px;
+    }
+
+    .pages-link {
+      display: block;
+      padding: 6px 10px;
+    }
+
+    #sidebar {
+      border: 1px solid rgba(27, 31, 35, 0.15);
+      border-radius: 3px;
+      padding: 10px;
+    }
+
+    #sidebar ul {
+      padding-left: 26px;
+    }
+
+    .footer-container {
+      margin-left: 70px;
+      border: 1px solid rgba(27, 31, 35, 0.15);
+      border-radius: 3px;
+      background-color: #f6f8fa;
+      padding: 0px;
+    }
+
+    .footer-content {
+      padding: 10px 15px;
     }
   </style>
 <body>
 
 <header>
-  <nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">{{.Header}}</nav>
+  <nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">{{.Page.Header}}</nav>
 </header>
-
 <main role="main" class="container">
   <div class="row">
-    <div id="sidebar" class="col-md-3 order-md-2 mb-4">
-      {{.Sidebar}}
+    <div class="col-md-3 order-md-2 mb-4 sidebar">
+      <div class="pages collapsed" role="navigation">
+        <h3 class="pages-header">
+          <svg class="caret caret-expanded" viewBox="0 0 12 16" version="1.1" width="12"
+               height="16" aria-hidden="true">
+            <path fill-rule="evenodd" d="M0 5l6 6 6-6z"></path>
+          </svg>
+          <svg class="caret caret-collapsed" viewBox="0 0 6 16" version="1.1" width="6"
+               height="16" aria-hidden="true">
+            <path fill-rule="evenodd" d="M0 14l6-6-6-6z"></path>
+          </svg>
+          Pages <span class="counter">{{len .Pages }}</span>
+        </h3>
+        <div class="pages-content">
+          <ul class="pages-list">
+            {{range $index, $element := .Pages}}
+              <li><strong><a class="pages-link" href="{{$index}}">{{$element}}</a></strong></li>
+            {{end}}
+          </ul>
+        </div>
+      </div>
+      <div id="sidebar">
+      {{.Page.Sidebar}}
+      </div>
     </div>
-    <div id="main" class="col-md-9 order-md-1">{{.Content}}</div>
+    <div id="main" class="col-md-9 order-md-1">{{.Page.Content.Content}}</div>
   </div>
 </main>
 
 <footer class="footer">
-  <div class="container" id="footer">{{.Footer}}</div>
+    <div class="footer-container col-md-8">
+      <div class="footer-content">
+      {{.Page.Footer}}
+      {{if ne .Page.LastModifiedBy "" }}
+        <small>Last edited by {{ .Page.LastModifiedBy }}, {{ .Page.LastModifiedAt }}</small>
+      {{end}}
+      </div>
+    </div>
+    </div>
+  </div>
 </footer>
 
 <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js"
         integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN"
         crossorigin="anonymous"></script>
-
 <script>
   $(function () {
+    let relativePath = "{{.RelativePath}}"
+
+    $("a").each(function () {
+      let href = $(this).attr('href')
+      if (href[0] != '/') {
+        href = '/' + href
+      }
+
+      if (relativePath != '') {
+        $(this).attr('href', '/' + relativePath + href)
+      } else {
+        $(this).attr('href', href)
+      }
+    })
+
     var address = location.hostname + (location.port ? ':' + location.port : '');
     if (location.pathname != '') {
       address += location.pathname
     }
 
+    $('.caret').on('click', function(){
+      let $pages = $('.pages')
+      if($pages.hasClass('collapsed')) {
+        $pages.removeClass('collapsed')
+        $pages.addClass('expanded')
+      } else {
+        $pages.removeClass('expanded')
+        $pages.addClass('collapsed')
+      }
+    });
     // var ws = new WebSocket("ws://" + address + "front");
     // ws.onmessage = function (e) {
     //   let obj = $.parseJSON(event.data)
@@ -101,6 +245,18 @@
     // });
   });
 </script>
+
+{{if .Page.IsCustomJS }}
+{{if ne .RelativePath ""}}
+<script src="/{{.RelativePath}}/custom.js"></script>
+{{else}}
+<script src="/custom.js"></script>
+{{end}}
+{{end}}
+
+{{if .Page.IsCustomCSS }}
+{{end}}
+
 </body>
 </html>
 {{end}}

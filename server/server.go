@@ -1,8 +1,9 @@
 package server
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/json"
-	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
 	"github.com/gobuffalo/packr"
@@ -11,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 var upgrader = websocket.Upgrader{
@@ -45,9 +47,9 @@ func (s *Server) routes() *gin.Engine {
 
 	r := gin.Default()
 
-	if s.relativePath == "" {
-		s.relativePath = "/"
-	}
+	//if s.relativePath == "" {
+	//	s.relativePath = "/"
+	//}
 
 	v1 := r.Group(s.relativePath)
 
@@ -69,19 +71,70 @@ func (s *Server) routes() *gin.Engine {
 		}
 	})
 
-	r.NoRoute(func(c *gin.Context) {
-		templateTxt := box.String("index.html")
+	v1.GET("/all_files", func(c *gin.Context) {
+		templateTxt := box.String("all_files.html")
 
+		t1, err := template.New("all_files").Parse(templateTxt)
+		if err != nil {
+			log.Error(err)
+		}
+
+		indexTxt := box.String("index.html")
+		t, err := template.New("index").Parse(indexTxt)
+		if err != nil {
+			log.Error(err)
+		}
+
+		page, err := s.renderer.GetPage("/")
+
+		content := bytes.Buffer{}
+		bf := bufio.NewWriter(&content)
+
+		pages := s.renderer.GetPages()
+
+		err = t1.ExecuteTemplate(bf, "all_files", pages)
+		if err != nil {
+			log.Error(err)
+		}
+
+		bf.Flush()
+		page.Content = Page{Content: template.HTML(content.String())}
+
+		c.Status(http.StatusOK)
+		err = t.ExecuteTemplate(c.Writer, "index", page)
+		if err != nil {
+			log.Error(err)
+		}
+
+	})
+
+	r.NoRoute(func(c *gin.Context) {
+		if !s.renderer.IsMainPageExist() {
+			c.Redirect(http.StatusTemporaryRedirect, filepath.Join(s.relativePath, "all_files"))
+			return
+		}
+
+		templateTxt := box.String("index.html")
 		t, err := template.New("index").Parse(templateTxt)
 		if err != nil {
 			log.Error(err)
 		}
 
-		page, err := s.renderer.GetPage(filepath.Base(c.Request.URL.Path))
+		path := c.Request.URL.Path
+		if s.relativePath != "" {
+			if strings.Contains(path, s.relativePath) == false {
+				c.AbortWithError(http.StatusNotFound, err)
+				return
+			}
+
+			path = strings.Replace(path, s.relativePath, "", -1)
+		}
+
+		page, err := s.renderer.GetPage(filepath.Base(path))
 		if err != nil {
 			statName := filepath.Base(c.Request.URL.Path)
-			_, err := os.Stat(filepath.Join(s.renderer.path, statName))
-			if err == nil {
+			stat, err := os.Stat(filepath.Join(s.renderer.path, statName))
+			if err == nil && stat.IsDir() == false {
 				c.File(filepath.Join(s.renderer.path, statName))
 				return
 			}
@@ -90,13 +143,26 @@ func (s *Server) routes() *gin.Engine {
 			return
 		}
 
-		err = t.ExecuteTemplate(c.Writer, "index", page)
+		pages := s.renderer.GetPages()
+
+		c.Status(http.StatusOK)
+		err = t.ExecuteTemplate(c.Writer, "index", struct {
+			Page         CommonPage
+			Pages        map[string]string
+			RelativePath string
+		}{page,
+			pages,
+			s.relativePath,
+		})
+		if err != nil {
+			log.Error(err)
+		}
 	})
 
 	return r
 }
 
-func (s *Server) sendJSON(conn *websocket.Conn, page Page) error {
+func (s *Server) sendJSON(conn *websocket.Conn, page CommonPage) error {
 	w, err := conn.NextWriter(websocket.TextMessage)
 	if err != nil {
 		return err
@@ -119,7 +185,7 @@ func (s *Server) worker() {
 	for {
 		page := <-s.message
 		for _, conn := range s.clients {
-			err := s.sendJSON(conn, page.(Page))
+			err := s.sendJSON(conn, page.(CommonPage))
 			if err != nil {
 				log.Error(err)
 			}
@@ -132,6 +198,5 @@ func (s *Server) Run() {
 	go s.worker()
 	r := s.routes()
 
-	fmt.Println(s.address)
 	r.Run(s.address)
 }

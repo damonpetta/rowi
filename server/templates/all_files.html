@@ -1,0 +1,8 @@
+{{define "all_files"}}
+<h1>All files</h1>
+<ul style="list-style:none;padding:0px;">
+{{range $index, $element := .}}
+  <li><a href="{{$index}}">{{$element}}</a></li>
+{{end}}
+</ul>
+{{end}}

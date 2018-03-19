@@ -11,7 +11,7 @@ ADD entrypoint.sh /app/entrypoint.sh
 WORKDIR /go/src/github.com/damonpetta/rowi
 
 # ##TODO## Move to two stage build
-RUN go build . \
+RUN go get -u github.com/gobuffalo/packr/... && packr build \
     && mv rowi /app/rowi \
     && rm -rf /var/cache/apk/* /go
 

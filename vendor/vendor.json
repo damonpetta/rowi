@@ -3,10 +3,22 @@
 	"ignore": "test",
 	"package": [
 		{
+			"checksumSHA1": "S4Fko30cceG/aNqXJ4sEdKjBSd8=",
+			"path": "github.com/PuerkitoBio/goquery",
+			"revision": "4126223a86db8598275b29db04d511cfdab67cf1",
+			"revisionTime": "2016-02-17T01:35:17Z"
+		},
+		{
 			"checksumSHA1": "ZKxETlJdB2XubMrZnXB0FQimVA8=",
 			"path": "github.com/Sirupsen/logrus",
 			"revision": "10f801ebc38b33738c9d17d50860f484a0988ff5",
 			"revisionTime": "2017-03-17T14:32:14Z"
+		},
+		{
+			"checksumSHA1": "YKJEHQmesxr6ExwGE4WZrpQsq4s=",
+			"path": "github.com/andybalholm/cascadia",
+			"revision": "3ad29d1ad1c4f2023e355603324348cf1f4b2d48",
+			"revisionTime": "2015-07-30T17:44:59Z"
 		},
 		{
 			"checksumSHA1": "UgISl5vagKcsJ9muUprDL3gK8R8=",
@@ -61,6 +73,12 @@
 			"path": "github.com/pkg/errors",
 			"revision": "816c9085562cd7ee03e7f8188a1cfd942858cded",
 			"revisionTime": "2018-03-11T21:45:15Z"
+		},
+		{
+			"checksumSHA1": "Wl3OHbdTg47anZk5/ogBzNU/qk8=",
+			"path": "github.com/rjeczalik/notify",
+			"revision": "d152f3ce359a5464dc41e84a8919fc67e55bbbf0",
+			"revisionTime": "2018-03-12T21:30:58Z"
 		},
 		{
 			"checksumSHA1": "EhdfJQGVgHHNpcNI5nizjNMbWUI=",
@@ -159,5 +177,5 @@
 			"revisionTime": "2017-04-07T17:21:22Z"
 		}
 	],
-	"rootPath": "github.com/rowi"
+	"rootPath": "github.com/damonpetta/rowi"
 }
