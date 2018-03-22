@@ -33,4 +33,4 @@ update_wiki &
 
 
 # Replace with rowi daemon
-./rowi -docroot $WORKDIR
+rowi -docroot $WORKDIR
