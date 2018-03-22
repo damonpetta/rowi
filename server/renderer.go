@@ -18,41 +18,42 @@ import (
 
 // Renderer - type which renderer md to html files
 type Renderer struct {
-	address         string          // address of http-server
-	path            string          // path to md-files
-	page            CommonPage      // page of Content
-	updater         chan CommonPage // channel for sending update information
-	relativePath    string          // RelativePath in case if server has this option set
-	contents        map[string]Page // set of all available pages
-	isMainPageExist bool            // set false in case of no index page: home.md, index.md and README.md
+	address         string           // address of http-server
+	path            string           // path to md-files
+	page            CommonPage       // page of Content
+	message         chan interface{} // channel for sending update information
+	relativePath    string           // RelativePath in case if server has this option set
+	contents        map[string]*Page // set of all available pages
+	isMainPageExist bool             // set false in case of no index page: home.md, index.md and README.md
 }
 
 // Page - type to keep page-related information
 type Page struct {
-	Content template.HTML
-	Title   string
+	Content  template.HTML
+	Title    string
+	EditLink string
 }
 
 // CommonPage - type to keep information about all pages
 type CommonPage struct {
-	Sidebar        template.HTML // Sidebar html-Content
-	Header         template.HTML // Header html-Content
-	Footer         template.HTML // Footer html-Content
-	Content        Page          // All page-related content
-	LastModifiedBy string        // User who modified this repo last time
-	LastModifiedAt string        // Date when this repo was modified last time
-	IsCustomCSS    bool          // If doc includes custom css
-	IsCustomJS     bool          // If doc includes custom js
+	Sidebar        Page   // Sidebar html-Content
+	Header         Page   // Header html-Content
+	Footer         Page   // Footer html-Content
+	Content        *Page  // All page-related content
+	LastModifiedBy string // User who modified this repo last time
+	LastModifiedAt string // Date when this repo was modified last time
+	IsCustomCSS    bool   // If doc includes custom css
+	IsCustomJS     bool   // If doc includes custom js
 	RelativePath   string
 }
 
 // NewRenderer - create an instance of renderer
-func NewRenderer(path string) *Renderer {
+func NewRenderer(path string, message chan interface{}) *Renderer {
 	return &Renderer{
-		contents:     make(map[string]Page),
+		contents:     make(map[string]*Page),
 		address:      "",
 		path:         path,
-		updater:      make(chan CommonPage, 100),
+		message:      message,
 		relativePath: "",
 	}
 }
@@ -81,6 +82,7 @@ func (r *Renderer) addContent(path string) (page Page, err error) {
 	matches = titleLinRe.FindAllStringSubmatch(str, -1)
 
 	title := strings.TrimRight(filepath.Base(path), ".md")
+	editLink := fmt.Sprintf("%s/_edit", title)
 	if len(matches) > 0 {
 		doc, err := goquery.NewDocumentFromReader(strings.NewReader(matches[0][1]))
 		if err == nil {
@@ -89,21 +91,38 @@ func (r *Renderer) addContent(path string) (page Page, err error) {
 	}
 
 	return Page{
-		Title:   title,
-		Content: template.HTML(str),
+		Title:    title,
+		Content:  template.HTML(str),
+		EditLink: editLink,
 	}, nil
 }
 
 // updateWatcher - cycle for monitoring changes in filesystem
 func (r *Renderer) updateWatcher() {
-	ch := make(chan notify.EventInfo, 1000)
-	notify.Watch(r.path, ch, notify.All)
-	defer notify.Stop(ch)
+	dataCh := make(chan notify.EventInfo, 1000)
+	notify.Watch(r.path, dataCh, notify.All)
+	defer notify.Stop(dataCh)
+	var isStop, isData bool
 
+	updateCh := time.NewTicker(time.Second * 5).C
 	// monitoring cycle
 	for {
-		ei := <-ch
-		log.Println("Got event:", ei)
+		<-updateCh
+		isStop = false
+		for !isStop {
+			select {
+			case <-dataCh:
+				isData = true
+			case <-time.After(time.Millisecond * 100):
+				isStop = true
+			}
+		}
+
+		if isData {
+			r.scanStorage()
+			r.message <- true
+			isData = false
+		}
 	}
 }
 
@@ -130,6 +149,11 @@ func (r *Renderer) GetPage(docPath string) (CommonPage, error) {
 func (r *Renderer) Run() {
 	go r.updateWatcher()
 
+	// init data storage
+	r.scanStorage()
+}
+
+func (r *Renderer) scanStorage() {
 	files, err := ioutil.ReadDir(r.path)
 	if err != nil {
 		log.Fatal(err)
@@ -152,7 +176,7 @@ func (r *Renderer) Run() {
 				log.Error(err)
 			}
 
-			r.contents["/"] = page
+			r.contents["/"] = &page
 			r.isMainPageExist = true
 		case "_header.md":
 			header, err := r.addContent(apath)
@@ -160,21 +184,21 @@ func (r *Renderer) Run() {
 				log.Error(err)
 			}
 
-			commonPage.Header = header.Content
+			commonPage.Header = header
 		case "_footer.md":
 			footer, err := r.addContent(apath)
 			if err != nil {
 				log.Error(err)
 			}
 
-			commonPage.Footer = footer.Content
+			commonPage.Footer = footer
 		case "_sidebar.md":
 			sidebar, err := r.addContent(apath)
 			if err != nil {
 				log.Error(err)
 			}
 
-			commonPage.Sidebar = sidebar.Content
+			commonPage.Sidebar = sidebar
 		case "custom.css":
 			commonPage.IsCustomCSS = true
 		case "custom.js":
@@ -186,7 +210,7 @@ func (r *Renderer) Run() {
 					log.Error(err)
 				}
 
-				r.contents[strings.TrimRight(f.Name(), ".md")] = page
+				r.contents[strings.TrimRight(f.Name(), ".md")] = &page
 			}
 		}
 
@@ -225,6 +249,38 @@ func (r *Renderer) Run() {
 
 		commonPage.LastModifiedBy = author
 		commonPage.LastModifiedAt = date.Format("2006-01-02 15:04:05")
+
+		out, err = exec.Command("/usr/bin/git", "--git-dir", filepath.Join(r.path, ".git"), "remote", "get-url", "origin").Output()
+		if err != nil {
+			log.Error(err)
+		}
+
+		editLinkHost := strings.TrimSpace(string(out))
+		editLinkHost = strings.Replace(editLinkHost, ".git", "", -1)
+		editLinkHost = strings.Replace(editLinkHost, ".wiki", "/wiki", -1)
+		fmt.Println(editLinkHost)
+		for ind, l := range r.contents {
+			if l.EditLink != "" {
+				r.contents[ind].EditLink = editLinkHost + "/" + l.EditLink
+			}
+		}
+
+		if commonPage.Sidebar.EditLink != "" {
+			commonPage.Sidebar.EditLink = editLinkHost + "/" + commonPage.Sidebar.EditLink
+		}
+
+		if commonPage.Header.EditLink != "" {
+			commonPage.Header.EditLink = editLinkHost + "/" + commonPage.Header.EditLink
+		}
+
+		if commonPage.Footer.EditLink != "" {
+			commonPage.Footer.EditLink = editLinkHost + "/" + commonPage.Footer.EditLink
+		}
+
+	} else {
+		for _, l := range r.contents {
+			l.EditLink = ""
+		}
 	}
 
 	r.page = commonPage

@@ -3,7 +3,6 @@ package server
 import (
 	"bufio"
 	"bytes"
-	"encoding/json"
 	log "github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
 	"github.com/gobuffalo/packr"
@@ -13,6 +12,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"time"
 )
 
 var upgrader = websocket.Upgrader{
@@ -25,19 +26,27 @@ type Server struct {
 	address      string
 	renderer     *Renderer
 	message      chan interface{}
-	clients      []*websocket.Conn
+	clients      map[*websocket.Conn]string
+	clientsMX    sync.Mutex
 	relativePath string
+}
+
+// FrontData - type which keep info about frontend
+type FrontData struct {
+	Url string `json:"url"`
 }
 
 // NewServer - create new instance a Server instance
 func NewServer(address, relativePath, wikiPath string) *Server {
-	renderer := NewRenderer(wikiPath)
+	message := make(chan interface{}, 100)
+	renderer := NewRenderer(wikiPath, message)
 	renderer.Run()
 
 	return &Server{
 		renderer:     renderer,
 		address:      address,
-		message:      make(chan interface{}, 100),
+		clients:      make(map[*websocket.Conn]string),
+		message:      message,
 		relativePath: relativePath,
 	}
 }
@@ -47,28 +56,20 @@ func (s *Server) routes() *gin.Engine {
 
 	r := gin.Default()
 
-	//if s.relativePath == "" {
-	//	s.relativePath = "/"
-	//}
-
 	v1 := r.Group(s.relativePath)
 
 	// this route uses just to communicate with frontend
 	v1.GET("/front", func(c *gin.Context) {
 		conn, _ := upgrader.Upgrade(c.Writer, c.Request, nil) // error ignored for sake of simplicity
-		s.clients = append(s.clients, conn)
-		defer conn.Close()
-
 		log.Printf("Client was added: %v", conn.RemoteAddr())
-		page, err := s.renderer.GetPage("/")
+
+		frontRequest := FrontData{}
+		err := conn.ReadJSON(&frontRequest)
 		if err != nil {
 			log.Error(err)
 		}
 
-		err = s.sendJSON(conn, page)
-		if err != nil {
-			log.Error(err)
-		}
+		s.clients[conn] = frontRequest.Url
 	})
 
 	v1.GET("/all_files", func(c *gin.Context) {
@@ -98,7 +99,7 @@ func (s *Server) routes() *gin.Engine {
 		}
 
 		bf.Flush()
-		page.Content = Page{Content: template.HTML(content.String())}
+		page.Content = &Page{Content: template.HTML(content.String())}
 
 		c.Status(http.StatusOK)
 		err = t.ExecuteTemplate(c.Writer, "index", page)
@@ -162,40 +163,40 @@ func (s *Server) routes() *gin.Engine {
 	return r
 }
 
-func (s *Server) sendJSON(conn *websocket.Conn, page CommonPage) error {
-	w, err := conn.NextWriter(websocket.TextMessage)
-	if err != nil {
-		return err
-	}
-
-	//disable html-encode
-	encoder := json.NewEncoder(w)
-	encoder.SetEscapeHTML(false)
-
-	err1 := encoder.Encode(page)
-	w.Close()
-	if err1 != nil {
-		return err1
-	}
-
-	return nil
-}
-
 func (s *Server) worker() {
 	for {
-		page := <-s.message
-		for _, conn := range s.clients {
-			err := s.sendJSON(conn, page.(CommonPage))
+		<-s.message
+		s.clientsMX.Lock()
+		for conn, _ := range s.clients {
+			err := conn.WriteJSON(gin.H{"test-message": "true"})
 			if err != nil {
 				log.Error(err)
 			}
 		}
+		s.clientsMX.Unlock()
+	}
+}
+
+func (s *Server) keepAliveWatcher() {
+	updater := time.NewTicker(time.Second * 2).C
+	for {
+		<-updater
+		s.clientsMX.Lock()
+		for conn, _ := range s.clients {
+			err := conn.WriteControl(websocket.PingMessage, []byte("ping"), time.Now().Add(time.Millisecond*100))
+			if err != nil {
+				delete(s.clients, conn)
+				log.Printf("Client was deleted: %v", conn.RemoteAddr())
+			}
+		}
+		s.clientsMX.Unlock()
 	}
 }
 
 // Run - run web server
 func (s *Server) Run() {
 	go s.worker()
+	go s.keepAliveWatcher()
 	r := s.routes()
 
 	r.Run(s.address)
