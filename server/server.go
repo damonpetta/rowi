@@ -3,6 +3,7 @@ package server
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
 	"github.com/gobuffalo/packr"
@@ -72,6 +73,56 @@ func (s *Server) routes() *gin.Engine {
 		s.clients[conn] = frontRequest.Url
 	})
 
+	v1.GET("/history/:first/:second", func(c *gin.Context) {
+		fmt.Println(c.Param("first"))
+		fmt.Println(c.Param("second"))
+		templateTxt := box.String("compare.html")
+
+		t, err := template.New("compare").Parse(templateTxt)
+		if err != nil {
+			log.Error(err)
+		}
+
+		styles := box.String("styles.html")
+
+		c.Status(http.StatusOK)
+		err = t.ExecuteTemplate(c.Writer, "compare", struct {
+			Commits []GitLog
+			Styles  template.HTML
+			Diff    string
+		}{
+			s.renderer.GetHistory(),
+			template.HTML(styles),
+			s.renderer.GetDiff(c.Param("first"), c.Param("second")),
+		})
+		if err != nil {
+			log.Error(err)
+		}
+	})
+
+	v1.GET("/history", func(c *gin.Context) {
+		templateTxt := box.String("history.html")
+
+		t, err := template.New("history").Parse(templateTxt)
+		if err != nil {
+			log.Error(err)
+		}
+
+		styles := box.String("styles.html")
+
+		c.Status(http.StatusOK)
+		err = t.ExecuteTemplate(c.Writer, "history", struct {
+			Commits []GitLog
+			Styles  template.HTML
+		}{
+			s.renderer.GetHistory(),
+			template.HTML(styles),
+		})
+		if err != nil {
+			log.Error(err)
+		}
+	})
+
 	v1.GET("/all_files", func(c *gin.Context) {
 		templateTxt := box.String("all_files.html")
 
@@ -101,8 +152,19 @@ func (s *Server) routes() *gin.Engine {
 		bf.Flush()
 		page.Content = &Page{Content: template.HTML(content.String())}
 
+		styles := box.String("styles.html")
+
 		c.Status(http.StatusOK)
-		err = t.ExecuteTemplate(c.Writer, "index", page)
+		err = t.ExecuteTemplate(c.Writer, "index", struct {
+			Page         CommonPage
+			Pages        map[string]string
+			RelativePath string
+			Styles       template.HTML
+		}{page,
+			pages,
+			s.relativePath,
+			template.HTML(styles),
+		})
 		if err != nil {
 			log.Error(err)
 		}
@@ -146,14 +208,18 @@ func (s *Server) routes() *gin.Engine {
 
 		pages := s.renderer.GetPages()
 
+		styles := box.String("styles.html")
+
 		c.Status(http.StatusOK)
 		err = t.ExecuteTemplate(c.Writer, "index", struct {
 			Page         CommonPage
 			Pages        map[string]string
 			RelativePath string
+			Styles       template.HTML
 		}{page,
 			pages,
 			s.relativePath,
+			template.HTML(styles),
 		})
 		if err != nil {
 			log.Error(err)

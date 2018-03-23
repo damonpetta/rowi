@@ -1,0 +1,107 @@
+{{define "history"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="">
+  <meta name="author" content="">
+  <title>History</title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
+        integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous"/>
+{{.Styles}}
+<body>
+
+<header>
+  <nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">
+  </nav>
+</header>
+<main role="main" class="container">
+  <div class="row">
+    <div id="main" class="col-md-9 order-md-1">
+      <h1>History</h1>
+      <table class="table table-bordered" id="history-table">
+        <thead>
+        <tr>
+          <th>Name</th>
+          <th>Revision message</th>
+          <th>Date</th>
+        </tr>
+        </thead>
+      {{range $index, $commit := .Commits}}
+        <tr data-commit="{{$commit.AbbreviatedCommit}}">
+          <td>
+            <img class="avatar" width="20" height="20"
+                 src="http://github.com/{{$commit.Commiter.Name}}.png"/>{{$commit.Commiter.Name}}
+          </td>
+          <td>
+          {{$commit.Subject}}
+          </td>
+          <td>
+          {{$commit.Commiter.Date.Format "Jan 06, 2006 3:04PM"}}
+          </td>
+        </tr>
+      {{end}}
+      </table>
+      <button class="btn btn-secondary" id="compare">Compare revisions</button>
+    </div>
+  </div>
+</main>
+
+<footer class="footer">
+  <div class="footer-container col-md-8">
+    <div class="footer-content">
+    </div>
+  </div>
+  </div>
+  </div>
+</footer>
+
+<script src="https://code.jquery.com/jquery-3.2.1.slim.min.js"
+        integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN"
+        crossorigin="anonymous"></script>
+
+<script type="text/javascript">
+  let first = ''
+  let second = ''
+
+  $('#history-table').on('click', 'tr', function () {
+    let dataAttr = $(this).attr('data-commit')
+    if(first === dataAttr) {
+      first = ""
+      $(this).removeClass('table-primary')
+      return
+    }
+
+    if(second === dataAttr) {
+      second = ""
+      $(this).removeClass('table-primary')
+      return
+    }
+
+    if(first ===  '') {
+      first = dataAttr
+    } else if (second === '') {
+      second = dataAttr
+    }
+
+    $(this).addClass('table-primary')
+  })
+
+  $('#history-table').on('mouseover', 'tr', function () {
+    $(this).addClass('table-primary')
+  }).on('mouseout', 'tr', function () {
+    let dataAttr = $(this).attr('data-commit')
+    if(first !== dataAttr && second !== dataAttr) {
+      $(this).removeClass('table-primary')
+    }
+  })
+
+  $('#compare').click(function(e){
+    e.stopPropagation()
+    window.location.replace(location.href + '/' + first + '/' + second + '/')
+  })
+</script>
+</body>
+</html>
+{{end}}

@@ -1,0 +1,59 @@
+{{define "compare"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="">
+  <meta name="author" content="">
+  <title>History</title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
+        integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous"/>
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css">
+  <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/diff2html/2.3.3/diff2html.min.css">
+{{.Styles}}
+<body>
+
+<header>
+  <nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">
+  </nav>
+</header>
+<main role="main" class="container">
+  <div class="row">
+    <div id="main" class="col-md-9 order-md-1">
+      <h1>History</h1>
+      <div id="line-by-line"></div>
+    </div>
+  </div>
+</main>
+
+<footer class="footer">
+  <div class="footer-container col-md-8">
+    <div class="footer-content">
+    </div>
+  </div>
+  </div>
+  </div>
+</footer>
+
+<script src="https://code.jquery.com/jquery-3.2.1.slim.min.js"
+        integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN"
+        crossorigin="anonymous"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/scala.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/diff2html/2.3.3/diff2html.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/diff2html/2.3.3/diff2html-ui.min.js"></script>
+
+
+<script type="text/javascript">
+  $(document).ready(function() {
+    let diff2htmlUi = new Diff2HtmlUI({diff: '{{.Diff}}'})
+    diff2htmlUi.draw('#line-by-line', {inputFormat: 'diff', outputFormat:'side-by-side', showFiles: true, matching: 'lines'})
+    diff2htmlUi.highlightCode('#line-by-line')
+  })
+</script>
+</body>
+</html>
+{{end}}

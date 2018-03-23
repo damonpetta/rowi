@@ -1,12 +1,15 @@
 package server
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	log "github.com/Sirupsen/logrus"
 	"github.com/rjeczalik/notify"
 	"github.com/shurcooL/github_flavored_markdown"
 	"html/template"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -45,6 +48,32 @@ type CommonPage struct {
 	IsCustomCSS    bool   // If doc includes custom css
 	IsCustomJS     bool   // If doc includes custom js
 	RelativePath   string
+}
+
+type GitLogUser struct {
+	Name  string    `json:"name"`
+	Email string    `json:"email"`
+	Date  time.Time `json:"date"`
+}
+
+type GitLog struct {
+	Commit               string     `json:"commit"`
+	AbbreviatedCommit    string     `json:"abbreviated_commit"`
+	Tree                 string     `json:"tree"`
+	AbbreviatedTree      string     `json:"abbreviated_tree"`
+	Parent               string     `json:"parent"`
+	AbbreviatedParent    string     `json:"abbreviated_parent"`
+	Refs                 string     `json :"refs"`
+	Encoding             string     `json:"encoding"`
+	Subject              string     `json:"subject"`
+	SanitizedSubjectLine string     `json:"sanitized_subject_line"`
+	Body                 string     `json:"body"`
+	CommitNotes          string     `json:"commit_notes"`
+	VerificationFlag     string     `json:"verification_flag"`
+	Signer               string     `json:"signer"`
+	SignerKey            string     `json:"signer_key"`
+	Author               GitLogUser `json:"author"`
+	Commiter             GitLogUser `json:"commiter"`
 }
 
 // NewRenderer - create an instance of renderer
@@ -298,4 +327,37 @@ func (r *Renderer) GetPages() map[string]string {
 	}
 
 	return result
+}
+
+// GetHistory - get commit history
+func (r *Renderer) GetHistory() []GitLog {
+	out, err := exec.Command("/usr/bin/git", "--git-dir", filepath.Join(r.path, ".git"), "log", `--pretty=format:{%n  "commit": "%H",%n  "abbreviated_commit": "%h",%n  "tree": "%T",%n  "abbreviated_tree": "%t",%n  "parent": "%P",%n  "abbreviated_parent": "%p",%n  "refs": "%D",%n  "encoding": "%e",%n  "subject": "%s",%n  "sanitized_subject_line": "%f",%n  "body": "%b",%n  "commit_notes": "%N",%n  "verification_flag": "%G?",%n  "signer": "%GS",%n  "signer_key": "%GK",%n  "author": {%n    "name": "%aN",%n    "email": "%aE",%n    "date": "%aI"%n  },%n  "commiter": {%n    "name": "%cN",%n    "email": "%cE",%n    "date": "%cI"%n  }%n}%n`).Output()
+	if err != nil {
+		log.Error(err)
+	}
+
+	results := []GitLog{}
+	obj := GitLog{}
+	data := bytes.NewReader(out)
+	decoder := json.NewDecoder(data)
+	for {
+		if err := decoder.Decode(&obj); err == io.EOF {
+			break
+		} else if err != nil {
+			log.Fatal(err)
+		}
+
+		results = append(results, obj)
+	}
+
+	return results
+}
+
+func (r *Renderer) GetDiff(first, second string) string {
+	out, err := exec.Command("/usr/bin/git", "--git-dir", filepath.Join(r.path, ".git"), "diff", first, second).Output()
+	if err != nil {
+		log.Error(err)
+	}
+
+	return string(out)
 }
