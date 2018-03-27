@@ -3,7 +3,6 @@ package server
 import (
 	"bufio"
 	"bytes"
-	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
 	"github.com/gobuffalo/packr"
@@ -12,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -74,8 +74,6 @@ func (s *Server) routes() *gin.Engine {
 	})
 
 	v1.GET("/history/:first/:second", func(c *gin.Context) {
-		fmt.Println(c.Param("first"))
-		fmt.Println(c.Param("second"))
 		templateTxt := box.String("compare.html")
 
 		t, err := template.New("compare").Parse(templateTxt)
@@ -85,15 +83,20 @@ func (s *Server) routes() *gin.Engine {
 
 		styles := box.String("styles.html")
 
+		history, count := s.renderer.GetHistory(2, 0)
 		c.Status(http.StatusOK)
 		err = t.ExecuteTemplate(c.Writer, "compare", struct {
-			Commits []GitLog
-			Styles  template.HTML
-			Diff    string
+			Styles       template.HTML
+			Diff         string
+			Commits      []GitLog
+			Count        int
+			RelativePath string
 		}{
-			s.renderer.GetHistory(),
 			template.HTML(styles),
 			s.renderer.GetDiff(c.Param("first"), c.Param("second")),
+			history,
+			count,
+			s.relativePath,
 		})
 		if err != nil {
 			log.Error(err)
@@ -102,6 +105,18 @@ func (s *Server) routes() *gin.Engine {
 
 	v1.GET("/history", func(c *gin.Context) {
 		templateTxt := box.String("history.html")
+		pageParam := c.Query("page")
+		limitParam := c.Query("limit")
+
+		limit, _ := strconv.Atoi(limitParam)
+		if limit == 0 {
+			limit = 10
+		}
+
+		page, _ := strconv.Atoi(pageParam)
+		if page == 0 {
+			page = 1
+		}
 
 		t, err := template.New("history").Parse(templateTxt)
 		if err != nil {
@@ -110,13 +125,57 @@ func (s *Server) routes() *gin.Engine {
 
 		styles := box.String("styles.html")
 
+		history, count := s.renderer.GetHistory(limit, (page-1)*limit)
+
+		pages := []int{}
+		rightCount := 2
+		leftCount := 2
+
+		if count-page < 2 {
+			leftCount += 2 - (count - page)
+			rightCount -= 2 - (count - page)
+		}
+
+		if page < 3 {
+			rightCount += 2 - (page - 1)
+			leftCount -= 2 - (page - 1)
+		}
+
+		for i := leftCount; i > 0; i-- {
+			if page-i > 0 {
+				pages = append(pages, page-i)
+			}
+		}
+
+		pages = append(pages, page)
+
+		for i := 0; i < rightCount; i++ {
+			if page+i+1 <= count {
+				pages = append(pages, page+i+1)
+			}
+		}
+
 		c.Status(http.StatusOK)
 		err = t.ExecuteTemplate(c.Writer, "history", struct {
-			Commits []GitLog
-			Styles  template.HTML
+			Commits      []GitLog
+			Count        int
+			Styles       template.HTML
+			RelativePath string
+			Page         int
+			PrevPage     int
+			NextPage     int
+			Limit        int
+			Pages        []int
 		}{
-			s.renderer.GetHistory(),
+			history,
+			count,
 			template.HTML(styles),
+			s.relativePath,
+			page,
+			page - 1,
+			page + 1,
+			limit,
+			pages,
 		})
 		if err != nil {
 			log.Error(err)

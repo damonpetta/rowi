@@ -20,6 +20,12 @@
   <div class="row">
     <div id="main" class="col-md-9 order-md-1">
       <h1>History</h1>
+      Show <select class="form-control paginater-limit">
+      <option {{if eq .Limit 5}}selected="selected"{{end}}>5</option>
+      <option {{if eq .Limit 10}}selected="selected"{{end}}>10</option>
+      <option {{if eq .Limit 20}}selected="selected"{{end}}>20</option>
+      <option {{if eq .Limit 30}}selected="selected"{{end}}>30</option>
+    </select> entries
       <table class="table table-bordered" id="history-table">
         <thead>
         <tr>
@@ -28,6 +34,8 @@
           <th>Date</th>
         </tr>
         </thead>
+      {{$limit := .Limit}}
+      {{$page := .Page}}
       {{range $index, $commit := .Commits}}
         <tr data-commit="{{$commit.AbbreviatedCommit}}">
           <td>
@@ -44,62 +52,85 @@
       {{end}}
       </table>
       <button class="btn btn-secondary" id="compare">Compare revisions</button>
+      <nav class="float-right">
+        <ul class="pagination">
+
+          <li class="page-item {{if lt .PrevPage 1}}disabled{{end}}">
+            <a class="page-link" href="/history?page={{.PrevPage}}&limit={{$limit}}" tabindex="-1">Previous</a>
+          </li>
+        {{range .Pages}}
+          <li class="page-item {{if eq $page .}}active{{end}}"><a class="page-link"
+                                                                  href="/history?page={{.}}&limit={{$limit}}">{{.}}</a>
+          </li>
+        {{end}}
+          <li class="page-item {{if gt .NextPage .Count}}disabled{{end}}">
+            <a class="page-link" href="/history?page={{.NextPage}}&limit={{$limit}}" tabindex="-1">Next</a>
+          </li>
+        </ul>
+      </nav>
     </div>
   </div>
 </main>
-
-<footer class="footer">
-  <div class="footer-container col-md-8">
-    <div class="footer-content">
-    </div>
-  </div>
-  </div>
-  </div>
-</footer>
 
 <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js"
         integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN"
         crossorigin="anonymous"></script>
 
 <script type="text/javascript">
-  let first = ''
-  let second = ''
+  $(document).ready(function () {
 
-  $('#history-table').on('click', 'tr', function () {
-    let dataAttr = $(this).attr('data-commit')
-    if(first === dataAttr) {
-      first = ""
-      $(this).removeClass('table-primary')
-      return
-    }
+    let first = ''
+    let second = ''
 
-    if(second === dataAttr) {
-      second = ""
-      $(this).removeClass('table-primary')
-      return
-    }
+    $('#history-table').on('click', 'tr:gt(0)', function () {
+      let dataAttr = $(this).attr('data-commit')
+      if (first === dataAttr) {
+        first = ""
+        $(this).removeClass('table-primary')
+        return
+      }
 
-    if(first ===  '') {
-      first = dataAttr
-    } else if (second === '') {
-      second = dataAttr
-    }
+      if (second === dataAttr) {
+        second = ""
+        $(this).removeClass('table-primary')
+        return
+      }
 
-    $(this).addClass('table-primary')
-  })
+      if (first === '') {
+        first = dataAttr
+      } else if (second === '') {
+        second = dataAttr
+      }
 
-  $('#history-table').on('mouseover', 'tr', function () {
-    $(this).addClass('table-primary')
-  }).on('mouseout', 'tr', function () {
-    let dataAttr = $(this).attr('data-commit')
-    if(first !== dataAttr && second !== dataAttr) {
-      $(this).removeClass('table-primary')
-    }
-  })
+      $(this).addClass('table-primary')
+    })
 
-  $('#compare').click(function(e){
-    e.stopPropagation()
-    window.location.replace(location.href + '/' + first + '/' + second + '/')
+    $('#history-table').on('mouseover', 'tr:gt(0)', function () {
+      $(this).addClass('table-primary')
+    }).on('mouseout', 'tr:gt(0)', function () {
+      let dataAttr = $(this).attr('data-commit')
+      if (first !== dataAttr && second !== dataAttr) {
+        $(this).removeClass('table-primary')
+      }
+    })
+
+    $('#compare').click(function (e) {
+      e.stopPropagation()
+      window.location.replace(location.href + '/' + first + '/' + second + '/')
+    })
+
+    $(".paginater-limit").on("change", function () {
+      let limit = $(".paginater-limit option:selected").val()
+
+      let relativePath = "{{.RelativePath}}"
+      let page = "{{.Page}}"
+
+      if (relativePath !== '') {
+        window.location.replace('/' + relativePath + '/history?page=1&limit=' + limit)
+      } else {
+        window.location.replace('/history?page=1&limit=' + limit)
+      }
+    })
   })
 </script>
 </body>

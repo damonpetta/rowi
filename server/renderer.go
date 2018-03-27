@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -329,9 +330,22 @@ func (r *Renderer) GetPages() map[string]string {
 	return result
 }
 
+func round(f float64) int {
+	if f < -0.5 {
+		return int(f - 0.5)
+	}
+	if f > 0.5 {
+		return int(f + 0.5)
+	}
+	return 0
+}
+
 // GetHistory - get commit history
-func (r *Renderer) GetHistory() []GitLog {
-	out, err := exec.Command("/usr/bin/git", "--git-dir", filepath.Join(r.path, ".git"), "log", `--pretty=format:{%n  "commit": "%H",%n  "abbreviated_commit": "%h",%n  "tree": "%T",%n  "abbreviated_tree": "%t",%n  "parent": "%P",%n  "abbreviated_parent": "%p",%n  "refs": "%D",%n  "encoding": "%e",%n  "subject": "%s",%n  "sanitized_subject_line": "%f",%n  "body": "%b",%n  "commit_notes": "%N",%n  "verification_flag": "%G?",%n  "signer": "%GS",%n  "signer_key": "%GK",%n  "author": {%n    "name": "%aN",%n    "email": "%aE",%n    "date": "%aI"%n  },%n  "commiter": {%n    "name": "%cN",%n    "email": "%cE",%n    "date": "%cI"%n  }%n}%n`).Output()
+func (r *Renderer) GetHistory(limit, skip int) ([]GitLog, int) {
+	out, err := exec.Command("/usr/bin/git", "--git-dir", filepath.Join(r.path, ".git"), "rev-list", "--count", "HEAD").Output()
+	count, err := strconv.Atoi(strings.TrimSpace(string(out)))
+
+	out, err = exec.Command("/usr/bin/git", "--git-dir", filepath.Join(r.path, ".git"), "log", "--max-count", strconv.Itoa(limit), "--skip", strconv.Itoa(skip), `--pretty=format:{%n  "commit": "%H",%n  "abbreviated_commit": "%h",%n  "tree": "%T",%n  "abbreviated_tree": "%t",%n  "parent": "%P",%n  "abbreviated_parent": "%p",%n  "refs": "%D",%n  "encoding": "%e",%n  "subject": "%s",%n  "sanitized_subject_line": "%f",%n  "body": "%b",%n  "commit_notes": "%N",%n  "verification_flag": "%G?",%n  "signer": "%GS",%n  "signer_key": "%GK",%n  "author": {%n    "name": "%aN",%n    "email": "%aE",%n    "date": "%aI"%n  },%n  "commiter": {%n    "name": "%cN",%n    "email": "%cE",%n    "date": "%cI"%n  }%n}%n`).Output()
 	if err != nil {
 		log.Error(err)
 	}
@@ -350,7 +364,7 @@ func (r *Renderer) GetHistory() []GitLog {
 		results = append(results, obj)
 	}
 
-	return results
+	return results, round(float64(count) / float64(limit))
 }
 
 func (r *Renderer) GetDiff(first, second string) string {

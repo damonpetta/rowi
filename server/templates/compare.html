@@ -22,7 +22,7 @@
 <main role="main" class="container">
   <div class="row">
     <div id="main" class="col-md-9 order-md-1">
-      <h1>History</h1>
+      <h1><a href="/history">History</a></h1>
       <div id="line-by-line"></div>
     </div>
   </div>
@@ -52,6 +52,22 @@
     let diff2htmlUi = new Diff2HtmlUI({diff: '{{.Diff}}'})
     diff2htmlUi.draw('#line-by-line', {inputFormat: 'diff', outputFormat:'side-by-side', showFiles: true, matching: 'lines'})
     diff2htmlUi.highlightCode('#line-by-line')
+
+    let relativePath = "{{.RelativePath}}"
+    let absPath = /^https?:\/\//i
+
+    $("a").each(function () {
+      let href = $(this).attr('href')
+      if (href[0] !== '/' && !absPath.test(href)) {
+        href = '/' + href
+      }
+
+      if (relativePath !== '') {
+        $(this).attr('href', '/' + relativePath + href)
+      } else {
+        $(this).attr('href', href)
+      }
+    })
   })
 </script>
 </body>
