@@ -7,30 +7,33 @@
 
 [ -z "$GITHUB_WIKI_URL" ] && { echo "Need to set GITHUB_WIKI_URL"; exit 1; }
 GITHUB_MIRROR_FREQUENCY=${GITHUB_MIRROR_FREQUENCY:-600}
-WORKDIR="/tmp/wiki"
+DOCROOT="/tmp/wiki"
 
 update_wiki(){
   while true
   do
-    cd $WORKDIR
+    cd $DOCROOT
     git pull
     sleep $GITHUB_MIRROR_FREQUENCY
   done
 }
 
-if [ -d $WORKDIR ]; then
-  rm -rf $WORKDIR
+[ -z "$DOCROOT" ] || FLAGS="-docroot $DOCROOT "
+[ -z "$PREFIX" ] || FLAGS+="-prefix $PREFIX "
+
+if [ -d $DOCROOT ]; then
+  rm -rf $DOCROOT
 fi
 
-if [ ! -d $WORKDIR ]; then
-  mkdir -p $WORKDIR
+if [ ! -d $DOCROOT ]; then
+  mkdir -p $DOCROOT
 fi
 
-git clone $GITHUB_WIKI_URL $WORKDIR
+git clone $GITHUB_WIKI_URL $DOCROOT
 
 # Background updater
 update_wiki &
 
 
 # Replace with rowi daemon
-rowi -docroot $WORKDIR
+rowi $FLAGS
