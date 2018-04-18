@@ -119,12 +119,17 @@
 
     $("a").each(function () {
       let href = $(this).attr('href')
+
+      if(typeof href === "undefined") {
+        return
+      }
+
       if (href[0] !== '/' && !absPath.test(href)) {
         href = '/' + href
       }
 
       if (relativePath !== '') {
-        $(this).attr('href', '/' + relativePath + href)
+        $(this).attr('href', relativePath + href)
       } else {
         $(this).attr('href', href)
       }
@@ -144,7 +149,7 @@
 
     let address = ((location.protocol === "https:") ? "wss://" : "ws://") + location.hostname + (location.port ? ':' + location.port : '');
     if (relativePath !== '') {
-      address += '/' + relativePath
+      address +=  relativePath
     }
     address += '/front'
 

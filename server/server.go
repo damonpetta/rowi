@@ -43,6 +43,9 @@ func NewServer(address, relativePath, wikiPath string) *Server {
 	renderer := NewRenderer(wikiPath, message)
 	renderer.Run()
 
+	relativePath = strings.TrimLeft(relativePath, "/")
+	relativePath = "/" + relativePath
+
 	return &Server{
 		renderer:     renderer,
 		address:      address,
